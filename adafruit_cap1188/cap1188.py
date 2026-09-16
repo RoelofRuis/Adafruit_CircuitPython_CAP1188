@@ -37,7 +37,6 @@ except ImportError:
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_CAP1188.git"
 
-
 _CAP1188_MID = const(0x5D)
 _CAP1188_PID = const(0x50)
 _CAP1188_MAIN_CONTROL = const(0x00)
@@ -56,21 +55,26 @@ _CAP1188_DELTA_COUNT = (
     const(0x17),
 )
 _CAP1188_SENSITIVTY = const(0x1F)
+_CAP1188_SENSOR_INPUT_CFG = const(0x22)
 _CAP1188_AVERAGING = const(0x24)
 _CAP1188_CAL_ACTIVATE = const(0x26)
+_CAP1188_INTERRUPT_ENABLE = const(0x27)
+_CAP1188_REPEAT_ENABLE = const(0x28)
 _CAP1188_MULTI_TOUCH_CFG = const(0x2A)
 _CAP1188_THESHOLD_1 = const(0x30)
 _CAP1188_STANDBY_CFG = const(0x41)
+_CAP1188_CFG_2 = const(0x44)
 _CAP1188_LED_LINKING = const(0x72)
 _CAP1188_PRODUCT_ID = const(0xFD)
 _CAP1188_MANU_ID = const(0xFE)
 _CAP1188_REVISION = const(0xFF)
 
-
 _SENSITIVITY = (128, 64, 32, 16, 8, 4, 2, 1)
 _AVG = (1, 2, 4, 8, 16, 32, 64, 128)
 _SAMP_TIME = ("320us", "640us", "1.28ms", "2.56ms")
 _CYCLE_TIME = ("35ms", "70ms", "105ms", "140ms")
+_REPEAT_RATE = ("35ms", "70ms", "105ms", "140ms", "175ms", "210ms", "245ms", "280ms", "315ms", "350ms", "385ms",
+                "420ms", "455ms", "490ms", "525ms", "560ms")
 
 
 class CAP1188_Channel:
@@ -102,6 +106,36 @@ class CAP1188_Channel:
         if not 0 <= value <= 127:
             raise ValueError("Threshold value must be in range 0 to 127.")
         self._cap1188._write_register(_CAP1188_THESHOLD_1 + self._pin - 1, value)
+
+    @property
+    def interrupt_repeat(self) -> bool:
+        """Whether a press and hold event will generate interrupts at the repeat rate."""
+        return bool(self._cap1188._read_register(_CAP1188_REPEAT_ENABLE) & (1 << self._pin - 1))
+
+    @interrupt_repeat.setter
+    def interrupt_repeat(self, v: bool) -> None:
+        current = self._cap1188._read_register(_CAP1188_REPEAT_ENABLE)
+        if v:
+            current |= 1 << self._pin - 1
+        else:
+            current &= ~(1 << self._pin - 1)
+        self._cap1188._write_register(_CAP1188_REPEAT_ENABLE, current)
+
+    @property
+    def interrupt_enabled(self) -> bool:
+        """Whether interrupts are enabled for this channel.
+        If enabled, the interrupt pin will be asserted when a press (or release if enabled)
+        is detected on this channel."""
+        return bool(self._cap1188._read_register(_CAP1188_INTERRUPT_ENABLE) & (1 << self._pin - 1))
+
+    @interrupt_enabled.setter
+    def interrupt_enabled(self, v: bool) -> None:
+        current = self._cap1188._read_register(_CAP1188_INTERRUPT_ENABLE)
+        if v:
+            current |= 1 << self._pin - 1
+        else:
+            current &= ~(1 << self._pin - 1)
+        self._cap1188._write_register(_CAP1188_INTERRUPT_ENABLE, current)
 
     def recalibrate(self) -> None:
         """Perform a self recalibration."""
@@ -141,9 +175,7 @@ class CAP1188:
 
     def touched(self) -> int:
         """Return 8 bit value representing touch state of all pins."""
-        # clear the INT bit and any previously touched pins
-        current = self._read_register(_CAP1188_MAIN_CONTROL)
-        self._write_register(_CAP1188_MAIN_CONTROL, current & ~0x01)
+        self.clear_interrupt()
         # return only currently touched pins
         return self._read_register(_CAP1188_INPUT_STATUS)
 
@@ -267,6 +299,61 @@ class CAP1188:
     def recalibrate_pins(self, mask: int) -> None:
         """Recalibrate pins specified by bit mask."""
         self._write_register(_CAP1188_CAL_ACTIVATE, mask)
+
+    def clear_interrupt(self) -> None:
+        """Clear interrupt status."""
+        current = self._read_register(_CAP1188_MAIN_CONTROL)
+        self._write_register(_CAP1188_MAIN_CONTROL, current & ~0x01)
+
+    @property
+    def alert_polarity(self) -> bool:
+        """Alert polarity determines the ALERT pin polarity and behavior:
+        False: The alert pin is active high and push-pull
+        True : The alert pin is active low and open drain
+        """
+        return bool(self._read_register(_CAP1188_CFG_2) & (1 << 6))
+
+    @alert_polarity.setter
+    def alert_polarity(self, v: bool):
+        current = self._read_register(_CAP1188_CFG_2)
+        if v:
+            current |= 1 << 6
+        else:
+            current &= ~(1 << 6)
+        self._write_register(_CAP1188_CFG_2, current)
+
+    @property
+    def interrupt_on_release(self) -> bool:
+        """Interrupt on release controls the interrupt behavior when a
+        release is detected on a button:
+        True:  An interrupt is generated when a press is detected and again
+               when a release is detected and at the repeat rate (if enabled).
+        False: An interrupt is generated when a press is detected and at the
+               repeat rate (if enabled) but not when a release is detected."""
+        return not bool(self._read_register(_CAP1188_CFG_2) & (1 << 0))
+
+    @interrupt_on_release.setter
+    def interrupt_on_release(self, v: bool):
+        current = self._read_register(_CAP1188_CFG_2)
+        # Chip has reverse logic: turning it off requires setting the bit to 1
+        if v:
+            current &= ~(1 << 0)
+        else:
+            current |= (1 << 0)
+        self._write_register(_CAP1188_CFG_2, current)
+
+    @property
+    def interrupt_repeat_rate(self) -> str:
+        """The repeat rate of interrupts for pins that have interrupts enabled."""
+        return _REPEAT_RATE[self._read_register(_CAP1188_SENSOR_INPUT_CFG) & 0x0F]
+
+    @interrupt_repeat_rate.setter
+    def interrupt_repeat_rate(self, v: str):
+        """The repeat rate of interrupts for pins that have interrupts enabled."""
+        current = self._read_register(_CAP1188_SENSOR_INPUT_CFG)
+        current &= ~0x0F
+        current |= _REPEAT_RATE.index(v)
+        self._write_register(_CAP1188_SENSOR_INPUT_CFG, current)
 
     def _read_register(self, address: int) -> int:
         """Return 8 bit value of register at address."""
