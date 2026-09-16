@@ -73,8 +73,24 @@ _SENSITIVITY = (128, 64, 32, 16, 8, 4, 2, 1)
 _AVG = (1, 2, 4, 8, 16, 32, 64, 128)
 _SAMP_TIME = ("320us", "640us", "1.28ms", "2.56ms")
 _CYCLE_TIME = ("35ms", "70ms", "105ms", "140ms")
-_REPEAT_RATE = ("35ms", "70ms", "105ms", "140ms", "175ms", "210ms", "245ms", "280ms", "315ms", "350ms", "385ms",
-                "420ms", "455ms", "490ms", "525ms", "560ms")
+_REPEAT_RATE = (
+    "35ms",
+    "70ms",
+    "105ms",
+    "140ms",
+    "175ms",
+    "210ms",
+    "245ms",
+    "280ms",
+    "315ms",
+    "350ms",
+    "385ms",
+    "420ms",
+    "455ms",
+    "490ms",
+    "525ms",
+    "560ms",
+)
 
 
 class CAP1188_Channel:
@@ -339,7 +355,7 @@ class CAP1188:
         if v:
             current &= ~(1 << 0)
         else:
-            current |= (1 << 0)
+            current |= 1 << 0
         self._write_register(_CAP1188_CFG_2, current)
 
     @property
