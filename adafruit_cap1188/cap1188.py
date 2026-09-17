@@ -324,7 +324,9 @@ class CAP1188:
     @property
     def alert_polarity(self) -> bool:
         """Alert polarity determines the ALERT pin polarity and behavior:
+
         False: The alert pin is active high and push-pull
+
         True : The alert pin is active low and open drain
         """
         return bool(self._read_register(_CAP1188_CFG_2) & (1 << 6))
@@ -342,10 +344,13 @@ class CAP1188:
     def interrupt_on_release(self) -> bool:
         """Interrupt on release controls the interrupt behavior when a
         release is detected on a button:
-        True:  An interrupt is generated when a press is detected and again
-               when a release is detected and at the repeat rate (if enabled).
+
+        True: An interrupt is generated when a press is detected and again
+        when a release is detected and at the repeat rate (if enabled).
+
         False: An interrupt is generated when a press is detected and at the
-               repeat rate (if enabled) but not when a release is detected."""
+        repeat rate (if enabled) but not when a release is detected.
+        """
         return not bool(self._read_register(_CAP1188_CFG_2) & (1 << 0))
 
     @interrupt_on_release.setter
