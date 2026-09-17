@@ -1,10 +1,11 @@
-import board
-
 # Example to demonstrate interrupt handling.
 # This particular example requires gpiozero or another GPIO library.
 
 from signal import pause
+
+import board
 from gpiozero import Button
+
 from adafruit_cap1188.i2c import CAP1188_I2C
 
 # GPIO pin for interrupt
@@ -18,7 +19,7 @@ cap.alert_polarity = True
 # Do not interrupt on release
 cap.interrupt_on_release = False
 
-for i in range (1, 9):
+for i in range(1, 9):
     # enable interrupts
     cap[i].interrupt_enabled = True
     # do not trigger repeat interrupts
@@ -27,10 +28,12 @@ for i in range (1, 9):
 # Clear any pending interrupts
 cap.clear_interrupt()
 
+
 def callback():
     # Code to handle interrupts goes here
     pins = cap.touched_pins
     print(f"Interrupt: {pins}")
+
 
 # You can reverse the direction of current by changing both cap.alert_polarity and pull_up to False.
 cap_int = Button(INT_PIN, pull_up=True)
