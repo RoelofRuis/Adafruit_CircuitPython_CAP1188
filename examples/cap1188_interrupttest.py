@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Roelof Ruis
+# SPDX-License-Identifier: MIT
+
 # Example to demonstrate interrupt handling.
 # This particular example requires gpiozero or another GPIO library.
 
